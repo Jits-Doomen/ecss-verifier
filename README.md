@@ -19,7 +19,7 @@ ___
 * Outgassing and optical contamination risk detection.
 * Clear engineering grade violation reports.
 ___
-## Supported Domains as of V 0.1
+## Supported Domains as of v0.2
 * Electrical Systems (ECSS-E-ST-20C)
 * Structural Systems (ECSS-E-ST-32C)
 * Avionics Systems (ECSS-E-ST-60C)
