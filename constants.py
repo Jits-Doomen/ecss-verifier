@@ -172,5 +172,5 @@ VALID_PARAMETER_KEYS = {
     "vswr_measured", "harness_wire_diameter", "measured_dielectric_thickness",
     "thermal_resistance_junction_case_max", "latchup_immunity_let_threshold",
     "gate_rupture_voltage_margin", "max_phase_noise_at_10kHz",
-    "attenuation_harmonics_minimum", "link_budget_margin_minimum"
+    "attenuation_harmonics_minimum", "link_budget_margin_minimum", "waiver"
 }
