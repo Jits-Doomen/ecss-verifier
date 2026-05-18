@@ -55,6 +55,8 @@ class IntelligentECSSLinter:
         raw_shear = data.get("applied_shear_stress")
         raw_freq = data.get("resonance_frequency_measured")
 
+        severity_level = "WAIVED_STRUCTURAL" if "waiver" in data else "HIGH"
+
         if retention < 1.0 and mat in self.materials:
             m_props = self.materials[mat]
             if raw_margin:
@@ -63,7 +65,7 @@ class IntelligentECSSLinter:
                     baseline_req = self.registry["ECSS-E-ST-32C"]["minimum_yield_margin"].magnitude
                     dynamic_req = baseline_req / retention
                     if qm < dynamic_req:
-                        anomalies.append(self._build_finding(name, "minimum_yield_margin [THERMAL-STRUCTURAL GRADIENT]", "ECSS-E-ST-32C", f"Mechanical reliability degradation under thermal loading. Required margin {dynamic_req:.4f}, measured {qm}.", "Increase structural safety factor or reduce thermal loading."))
+                        anomalies.append(self._build_finding(name, "minimum_yield_margin [THERMAL-STRUCTURAL GRADIENT]", "ECSS-E-ST-32C", f"Mechanical reliability degradation under thermal loading. Required margin {dynamic_req:.4f}, measured {qm}.", f"Waiver active: {data.get('waiver')}" if "waiver" in data else "Increase structural safety factor or reduce thermal loading.", severity_level))
                 except Exception:
                     pass
 
@@ -74,7 +76,7 @@ class IntelligentECSSLinter:
                     ax_limit = base_axial_limit * retention
                     au, al = self._get_floats(qa, ax_limit)
                     if au > al:
-                        anomalies.append(self._build_finding(name, "applied_axial_load [THERMAL-STRUCTURAL OVERLOAD]", "ECSS-E-ST-32C", f"Structural load {qa} exceeds thermal derated limit {ax_limit}.", "Reduce axial load or increase material margin."))
+                        anomalies.append(self._build_finding(name, "applied_axial_load [THERMAL-STRUCTURAL OVERLOAD]", "ECSS-E-ST-32C", f"Structural load {qa} exceeds thermal derated limit {ax_limit}.", f"Waiver active: {data.get('waiver')}" if "waiver" in data else "Reduce axial load or increase material margin.", severity_level))
                 except Exception:
                     pass
 
@@ -87,7 +89,7 @@ class IntelligentECSSLinter:
                     dynamic_shear_limit = resolved_limit * retention
                     su, sl = self._get_floats(qs, dynamic_shear_limit)
                     if su > sl:
-                        anomalies.append(self._build_finding(name, "applied_shear_stress [THERMAL-SHEAR INTEGRITY]", "ECSS-E-ST-32C", f"Shear stress {qs} exceeds thermal derated limit {dynamic_shear_limit}.", "Increase section thickness or reduce transverse load."))
+                        anomalies.append(self._build_finding(name, "applied_shear_stress [THERMAL-SHEAR INTEGRITY]", "ECSS-E-ST-32C", f"Shear stress {qs} exceeds thermal derated limit {dynamic_shear_limit}.", f"Waiver active: {data.get('waiver')}" if "waiver" in data else "Increase section thickness or reduce transverse load.", severity_level))
                 except Exception:
                     pass
 
@@ -97,7 +99,7 @@ class IntelligentECSSLinter:
                 f_limit = self.registry["ECSS-E-ST-32C"]["minimum_resonance_frequency_hz"]
                 fu, fl = self._get_floats(qf, f_limit)
                 if fu < fl:
-                    anomalies.append(self._build_finding(name, "resonance_frequency_measured [HARMONIC MODAL ANALYSIS]", "ECSS-E-ST-32C", f"Measured resonance frequency {qf} below minimum {f_limit}.", "Increase structural stiffness or reduce distributed mass."))
+                    anomalies.append(self._build_finding(name, "resonance_frequency_measured [HARMONIC MODAL ANALYSIS]", "ECSS-E-ST-32C", f"Measured resonance frequency {qf} below minimum {f_limit}.", f"Waiver active: {data.get('waiver')}" if "waiver" in data else "Increase structural stiffness or reduce distributed mass.", severity_level))
             except Exception:
                 pass
 
@@ -106,6 +108,8 @@ class IntelligentECSSLinter:
         raw_current = data.get("operating_current_peak")
         raw_harness_diam = data.get("harness_wire_diameter")
         raw_dielectric = data.get("measured_dielectric_thickness")
+
+        severity_level = "WAIVED_ELECTRICAL" if "waiver" in data else "HIGH"
 
         if std == "ECSS-E-ST-20C":
             base_v_limit = self.registry["ECSS-E-ST-20C"]["max_bus_voltage"]
@@ -124,7 +128,7 @@ class IntelligentECSSLinter:
                     qv = self._normalize_quantity(raw_voltage)
                     vu, vl = self._get_floats(qv, base_v_limit * factor)
                     if vu > vl:
-                        anomalies.append(self._build_finding(name, "operating_voltage_peak [THERMAL-ELECTRICAL DERATING]", "ECSS-E-ST-20C", f"Voltage {qv} exceeds derated limit {base_v_limit * factor}.", "Reduce bus voltage or redesign power stage."))
+                        anomalies.append(self._build_finding(name, "operating_voltage_peak [THERMAL-ELECTRICAL DERATING]", "ECSS-E-ST-20C", f"Voltage {qv} exceeds derated limit {base_v_limit * factor}.", f"Waiver active: {data.get('waiver')}" if "waiver" in data else "Reduce bus voltage or redesign power stage.", severity_level))
                 except Exception:
                     pass
 
@@ -137,7 +141,7 @@ class IntelligentECSSLinter:
                     density_limit = self.registry["ECSS-E-ST-20C"]["harness_max_linear_current_density"]
                     cu, cl = self._get_floats(current_density, density_limit)
                     if cu > cl:
-                        anomalies.append(self._build_finding(name, "operating_current_peak [HARNESS THERMAL OVERLOAD]", "ECSS-E-ST-20C", f"Harness current density {current_density:.4f} exceeds allowable limit {density_limit}.", "Increase conductor diameter or reduce current."))
+                        anomalies.append(self._build_finding(name, "operating_current_peak [HARNESS THERMAL OVERLOAD]", "ECSS-E-ST-20C", f"Harness current density {current_density:.4f} exceeds allowable limit {density_limit}.", f"Waiver active: {data.get('waiver')}" if "waiver" in data else "Increase conductor diameter or reduce current.", severity_level))
                 except Exception:
                     pass
 
@@ -149,13 +153,15 @@ class IntelligentECSSLinter:
                     breakdown_limit = self.registry["ECSS-E-ST-20C"]["min_dielectric_breakdown"]
                     du, dl = self._get_floats(dielectric_stress, breakdown_limit)
                     if du > dl:
-                        anomalies.append(self._build_finding(name, "measured_dielectric_thickness [INSULATION ARCDOWN]", "ECSS-E-ST-20C", f"Dielectric stress {dielectric_stress:.2f} exceeds limit {breakdown_limit}.", "Increase insulation thickness or reduce voltage."))
+                        anomalies.append(self._build_finding(name, "measured_dielectric_thickness [INSULATION ARCDOWN]", "ECSS-E-ST-20C", f"Dielectric stress {dielectric_stress:.2f} exceeds limit {breakdown_limit}.", f"Waiver active: {data.get('waiver')}" if "waiver" in data else "Increase insulation thickness or reduce voltage.", severity_level))
                 except Exception:
                     pass
 
     def _execute_rf_physics_checks(self, name: str, data: dict, std: str, anomalies: list):
         raw_rf_pow = data.get("rf_power_output_measured")
         raw_vswr = data.get("vswr_measured")
+
+        severity_level = "WAIVED_RF" if "waiver" in data else "HIGH"
 
         if std == "ECSS-E-ST-50C":
             if raw_rf_pow:
@@ -164,7 +170,7 @@ class IntelligentECSSLinter:
                     rf_limit = self.registry["ECSS-E-ST-50C"]["max_rf_power_output"]
                     rfu, rfl = self._get_floats(qrf, rf_limit)
                     if rfu > rfl:
-                        anomalies.append(self._build_finding(name, "rf_power_output_measured [RF AMPLIFIER BLOWOUT]", "ECSS-E-ST-50C", f"RF power {qrf} exceeds limit {rf_limit}.", "Reduce output power or improve thermal dissipation."))
+                        anomalies.append(self._build_finding(name, "rf_power_output_measured [RF AMPLIFIER BLOWOUT]", "ECSS-E-ST-50C", f"RF power {qrf} exceeds limit {rf_limit}.", f"Waiver active: {data.get('waiver')}" if "waiver" in data else "Reduce output power or improve thermal dissipation.", severity_level))
                 except Exception:
                     pass
 
@@ -174,7 +180,7 @@ class IntelligentECSSLinter:
                     vswr_limit = self.registry["ECSS-E-ST-50C"]["maximum_vswr"].magnitude
                     if qvswr > vswr_limit:
                         reflected_power_pct = (((qvswr - 1) / (qvswr + 1))**2) * 100.0
-                        anomalies.append(self._build_finding(name, "vswr_measured [ANTENNA IMPEDANCE MISMATCH]", "ECSS-E-ST-50C", f"VSWR {qvswr} reflects {reflected_power_pct:.2f}% power back into transmitter.", "Retune antenna matching network."))
+                        anomalies.append(self._build_finding(name, "vswr_measured [ANTENNA IMPEDANCE MISMATCH]", "ECSS-E-ST-50C", f"VSWR {qvswr} reflects {reflected_power_pct:.2f}% power back into transmitter.", f"Waiver active: {data.get('waiver')}" if "waiver" in data else "Retune antenna matching network.", severity_level))
                 except Exception:
                     pass
 
@@ -201,6 +207,7 @@ class IntelligentECSSLinter:
 
             std = data.get("ecss_standard")
             mat = data.get("material")
+            severity_level = "WAIVED_STANDARD" if "waiver" in data else "HIGH"
 
             if not std or std not in self.registry:
                 continue
@@ -208,7 +215,7 @@ class IntelligentECSSLinter:
             rules = self.registry[std]
 
             for key, raw_val in data.items():
-                if key in ["ecss_standard", "material", "sensitive_optical_payload", "radiation_exposed", "external_facing_harness"] or key not in rules:
+                if key in ["ecss_standard", "material", "sensitive_optical_payload", "radiation_exposed", "external_facing_harness", "waiver"] or key not in rules:
                     continue
 
                 try:
@@ -219,19 +226,19 @@ class IntelligentECSSLinter:
                         continue
 
                     if q_user.dimensionality != q_limit.dimensionality:
-                        anomalies.append(self._build_finding(name, key, std, f"Dimensionality mismatch: {q_user.units} vs {q_limit.units}.", "Correct engineering units."))
+                        anomalies.append(self._build_finding(name, key, std, f"Dimensionality mismatch: {q_user.units} vs {q_limit.units}.", "Correct engineering units.", severity_level))
                         continue
 
                     val_u, val_l = self._get_floats(q_user, q_limit)
 
                     if "max_" in key or "maximum_" in key:
                         if val_u > val_l:
-                            anomalies.append(self._build_finding(name, key, std, f"Measured value {q_user} exceeds limit {q_limit}.", "Reduce operational load."))
+                            anomalies.append(self._build_finding(name, key, std, f"Measured value {q_user} exceeds limit {q_limit}.", f"Waiver active: {data.get('waiver')}" if "waiver" in data else "Reduce operational load.", severity_level))
                     elif "min_" in key or "minimum_" in key:
                         if val_u < val_l:
-                            anomalies.append(self._build_finding(name, key, std, f"Measured value {q_user} below minimum {q_limit}.", "Increase engineering margin."))
+                            anomalies.append(self._build_finding(name, key, std, f"Measured value {q_user} below minimum {q_limit}.", f"Waiver active: {data.get('waiver')}" if "waiver" in data else "Increase engineering margin.", severity_level))
                 except Exception as e:
-                    anomalies.append(self._build_finding(name, key, std, f"Internal mapping failure: {str(e)}", "Inspect parameter formatting."))
+                    anomalies.append(self._build_finding(name, key, std, f"Internal mapping failure: {str(e)}", "Inspect parameter formatting.", severity_level))
 
             raw_t = data.get("max_operational_temp")
             raw_tml = data.get("max_outgassing_tml")
@@ -271,11 +278,15 @@ class IntelligentECSSLinter:
                     tid_limit = rules.get("minimum_radiation_hardness_tid", 50.0 * ureg.kilorad)
                     t_u, t_l = self._get_floats(qtid, tid_limit)
                     if t_u > t_l:
-                        anomalies.append(self._build_finding(name, "expected_tid_exposure", "ECSS-E-ST-60C", f"Radiation exposure {qtid} exceeds silicon tolerance {tid_limit}.", "Increase shielding or use rad-hard components."))
+                        anomalies.append(self._build_finding(name, "expected_tid_exposure", "ECSS-E-ST-60C", f"Radiation exposure {qtid} exceeds silicon tolerance {tid_limit}.", f"Waiver active: {data.get('waiver')}" if "waiver" in data else "Increase shielding or use rad-hard components.", severity_level))
                 except Exception:
                     pass
 
         if high_outgassers and optical_nodes:
-            anomalies.append(self._build_finding("System Deployment Geometry Layout", "Outgassing Molecular Cross Contamination", "ECSS-E-ST-32C", f"Outgassing nodes {high_outgassers} have line of sight to optical payloads {optical_nodes}.", "Add baffling or relocate components."))
+            spatial_waiver = False
+            for node in high_outgassers + optical_nodes:
+                if "waiver" in normalized_components.get(node, {}):
+                    spatial_waiver = True
+            anomalies.append(self._build_finding("System Deployment Geometry Layout", "Outgassing Molecular Cross Contamination", "ECSS-E-ST-32C", f"Outgassing nodes {high_outgassers} have line of sight to optical payloads {optical_nodes}.", "Baffle mitigation documented via active system waiver status." if spatial_waiver else "Add baffling or relocate components.", "WAIVED_GEOMETRY" if spatial_waiver else "HIGH"))
 
         return anomalies
